@@ -15,7 +15,7 @@
 
 package kamon.play
 
-import io.netty.handler.codec.http.HttpRequest
+import io.netty.handler.codec.http.{HttpRequest, HttpResponse}
 import kamon.Kamon
 import kamon.context.{Context, TextMap}
 import play.api.libs.ws.WSRequest
@@ -25,6 +25,14 @@ package object instrumentation {
   def encodeContext(ctx:Context, request:WSRequest): WSRequest = {
     val textMap = Kamon.contextCodec().HttpHeaders.encode(ctx)
     request.withHeaders(textMap.values.toSeq: _*)
+  }
+
+  def encodeContext(ctx:Context, response:HttpResponse): HttpResponse = {
+    val textMap = Kamon.contextCodec().HttpHeaders.encode(ctx)
+    textMap.values.foreach{case (k,v) =>
+      response.headers().add(k,v)
+    }
+    response
   }
 
   def decodeContext(request: HttpRequest): Context = {

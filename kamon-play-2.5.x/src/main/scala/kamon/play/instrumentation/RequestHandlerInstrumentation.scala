@@ -44,7 +44,9 @@ class RequestHandlerInstrumentation {
       .start()
 
     val responseFuture = Kamon.withContext(incomingContext.withKey(Span.ContextKey, serverSpan)) {
-      pjp.proceed().asInstanceOf[Future[HttpResponse]]
+      pjp.proceed().asInstanceOf[Future[HttpResponse]].map{r =>
+        encodeContext(incomingContext, r)
+      }(CallingThreadExecutionContext)
     }
 
     responseFuture.transform(

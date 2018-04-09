@@ -96,6 +96,7 @@ class RequestHandlerInstrumentationSpec extends PlaySpec with GuiceOneServerPerS
       Kamon.withContext(create(Span.ContextKey, okSpan)) {
         val response = await(wsClient.url(endpoint).get())
         response.status mustBe 200
+        response.header("X-B3-TraceId") mustBe defined
       }
 
       eventually(timeout(2 seconds)) {
@@ -117,6 +118,7 @@ class RequestHandlerInstrumentationSpec extends PlaySpec with GuiceOneServerPerS
         val response = await(wsClient.url(endpoint).get())
         response.status mustBe 200
         response.body mustBe "123456"
+        response.header("X-Request-Id").value mustBe "123456"
       }
     }
 
@@ -195,6 +197,26 @@ class RequestHandlerInstrumentationSpec extends PlaySpec with GuiceOneServerPerS
         span.tags("http.method") mustBe TagValue.String("GET")
         span.tags("error") mustBe TagValue.True
         span.tags("http.status_code") mustBe TagValue.Number(500)
+      }
+    }
+
+    "propagate the current context and respond to the ok action with context encoded" in {
+      val wsClient = app.injector.instanceOf[WSClient]
+      val okSpan = Kamon.buildSpan("ok-operation-span").start()
+      val endpoint = s"http://localhost:$port/ok"
+
+      Kamon.withContext(create(Span.ContextKey, okSpan)) {
+        val response = await(wsClient.url(endpoint).get())
+        response.status mustBe 200
+        response.header("X-B3-TraceId") mustBe defined
+      }
+
+      eventually(timeout(2 seconds)) {
+        val span = reporter.nextSpan().value
+        span.operationName mustBe "GET:/ok"
+        span.tags("span.kind") mustBe TagValue.String("server")
+        span.tags("http.method") mustBe TagValue.String("GET")
+        span.tags("http.status_code") mustBe TagValue.Number(200)
       }
     }
   }
